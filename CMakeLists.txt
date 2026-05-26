@@ -33,3 +33,26 @@ FetchContent_MakeAvailable(googletest)
 add_executable(command_tests tests/test_command.cpp)
 target_link_libraries(command_tests PRIVATE GTest::gtest_main)
 add_test(NAME CommandTests COMMAND command_tests)
+
+# Если файл tests/test_command.cpp не найден, используем альтернативный тест
+if(NOT EXISTS ${CMAKE_SOURCE_DIR}/tests/test_command.cpp)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/fallback_test.cpp "
+#include <gtest/gtest.h>
+#include <sstream>
+#include \"../webpage_button.cpp\"
+
+TEST(CommandPatternTest, ChangeWebPageCommandExecutesChangeWebPage) {
+    std::stringstream buffer;
+    std::streambuf* old = std::cout.rdbuf(buffer.rdbuf());
+    WebPageManager manager;
+    ChangeWebPageCommand cmd(manager, \"http://example.com\");
+    cmd.Execute();
+    std::cout.rdbuf(old);
+    std::string output = buffer.str();
+    EXPECT_NE(output.find(\"Change web page to http://example.com.\"), std::string::npos);
+}
+")
+    target_sources(command_tests PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/fallback_test.cpp)
+else()
+    target_sources(command_tests PRIVATE tests/test_command.cpp)
+endif()
